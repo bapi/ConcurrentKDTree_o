@@ -1,37 +1,31 @@
-/* 
- * Copyright (c) 2015-2016, Bapi Chatterjee
- * All rights reserved.
-
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
-
- * Redistributions of source code must retain the above copyright notice, this list 
- * of conditions and the following disclaimer.
-
- * Redistributions in binary form must reproduce the above copyright notice, this 
- * list of conditions and the following disclaimer in the documentation and/or other 
- * materials provided with the distribution.
-
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND 
- * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, 
- * BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE 
- * COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS 
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED 
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF 
- * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH 
- * DAMAGE.
+/*
+ * Copyright (c) 2015-2016, Bapi Chatterjee All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without modification, are permitted
+ * provided that the following conditions are met:
+ * 
+ * Redistributions of source code must retain the above copyright notice, this list of conditions
+ * and the following disclaimer.
+ * 
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+ * and the following disclaimer in the documentation and/or other materials provided with the
+ * distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+ * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package se.chalmers.dcs.bapic.concurrentKDTree.test;
 
 import java.io.IOException;
 import org.apache.commons.math3.distribution.*;
 import java.util.Random;
-import se.chalmers.dcs.bapic.concurrentKDTree.utils.K;
-import se.chalmers.dcs.bapic.concurrentKDTree.utils.KDTreeADT;
+import se.chalmers.dcs.bapic.concurrentKDTree.utils.*;
 
 /**
  *
@@ -40,11 +34,13 @@ import se.chalmers.dcs.bapic.concurrentKDTree.utils.KDTreeADT;
 public class RunOperations implements Runnable {
 
     boolean testSanity;
+    boolean linearizable;
     int threadId;
     int addPercent;
     int removePercent;
     int keyRange;
     int numberOfOps;
+    int dimension;
     KDTreeADT set;
     Random randOp;
     Random randKey;
@@ -65,12 +61,16 @@ public class RunOperations implements Runnable {
      * @param testSanity
      * @throws IOException
      */
-    public RunOperations(KDTreeADT s, int tId, int aP, int rP, int kR, int[] results, int[][] sanityAdds, int[][] sanityRemoves, boolean testSanity) throws IOException {
+    public RunOperations(KDTreeADT s, int tId, int aP, int rP, int kR, int dim, int[] results,
+            int[][] sanityAdds, int[][] sanityRemoves, boolean testSanity, boolean linearizable)
+            throws IOException {
         this.testSanity = testSanity;
+        this.linearizable = linearizable;
         this.threadId = tId;
         this.addPercent = aP;
         this.removePercent = rP;
         this.keyRange = kR;
+        this.dimension = dim;
         this.set = s;
         this.randOp = new Random(threadId);
         this.randKey = new Random(threadId);
@@ -88,18 +88,25 @@ public class RunOperations implements Runnable {
 
         while ( ! RunController.stopFlag) {
             int chooseOperation = randOp.nextInt(100);
-//            double key = randKey.nextInt(keyRange);//Generates a random data point from a Uniform distribution.
-            double key = z.sample();//Generates a random data point from a Zipfian distribution with exponent 5.
-            if (chooseOperation < addPercent) {
-                set.add(new K(key));
+            double[] key = new double[dimension];
+            for (int i = 0; i < dimension; i ++) {
+                key[i] = Tools.randomInRange(randKey, 0, keyRange);
+                // System.err.println(key[i]);
             }
-            else if (chooseOperation < removePercent) {
-                set.remove(new K(key));
+            try {
+                if (chooseOperation < addPercent) {
+                    set.add(key, key);
+                }
+                else if (chooseOperation < removePercent) {
+                    set.remove(key);
+                }
+                else {
+                    set.nearest(key, linearizable);
+                }
             }
-            else {
-                set.contains(new K(key));
-            }
+            catch (DimensionLimitException e) {
 
+            }
             numberOfOps ++;
         }
 
@@ -107,26 +114,41 @@ public class RunOperations implements Runnable {
     }
 
     private void sanityRun() {
+        int opIndex;
         while ( ! RunController.startFlag);
 
         while ( ! RunController.stopFlag) {
+            double[] key = new double[this.dimension];
+            opIndex = 0;
             int chooseOperation = randOp.nextInt(2);
-            int key = randKey.nextInt(keyRange);
-
+            for (int i = 0; i < dimension; i ++) {
+                key[i] = randKey.nextInt(keyRange);// Tools.randomInRange(randKey, 0, keyRange);
+                // opIndex += (i == 0) ? key[i] : key[i] * keyRange;
+                opIndex += key[i] * (int) Math.pow(keyRange, i);
+            }
+            // System.out.println(Arrays.toString(key)+" => "+opIndex + " op: " + chooseOperation);
             if (chooseOperation == 1) {
-                if (set.add(new K(key))) {
-                    numberOfAdd[key] ++;
+                try {
+                    if (set.add(key, key)) {
+                        numberOfAdd[opIndex] ++;
+                    }
+                    else if (set.remove(key)) {
+                        numberOfRemove[opIndex] ++;
+                    }
                 }
-                else if (set.remove(new K(key))) {
-                    numberOfRemove[key] ++;
+                catch (DimensionLimitException e) {
                 }
             }
             else {
-                if (set.remove(new K(key))) {
-                    numberOfRemove[key] ++;
+                try {
+                    if (set.remove(key)) {
+                        numberOfRemove[opIndex] ++;
+                    }
+                    else if (set.add(key, key)) {
+                        numberOfAdd[opIndex] ++;
+                    }
                 }
-                else if (set.add(new K(key))) {
-                    numberOfAdd[key] ++;
+                catch (DimensionLimitException e) {
                 }
             }
         }

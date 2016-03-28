@@ -5,46 +5,15 @@
  */
 package se.chalmers.dcs.bapic.concurrentKDTree.KDTrees;
 
-import java.util.List;
-import java.util.concurrent.locks.Lock;
+//import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import se.chalmers.dcs.kdrees.utils.Tools;
+import se.chalmers.dcs.bapic.concurrentKDTree.utils.*;
 
 /**
  *
  * @author bapic
  */
 public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
-
-    @Override
-    public List<T> nearestEuclidean(double[] key, double dist) throws KeySizeException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public List<T> nearestHamming(double[] key, double dist) throws KeySizeException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public int rangeQuery(double[] min, double[] max) throws DimensionLimitException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public List<T> nearest(double[] key, int n) throws KeySizeException, IllegalArgumentException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public int size() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public T approxNearest(double[] key, double epsilon) throws KeySizeException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 
     protected static class Node<T> {
 
@@ -80,14 +49,14 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
     }
 
     final Node<T> root;
-    private volatile Lock lock = new ReentrantLock();
+    private volatile ReentrantLock lock = new ReentrantLock();
     final int k;
 
     public CoarseLockBasedKdTree(int k) {
         this.k = k;
         double[] m_keyMax1 = new double[k];
         double[] m_keyMax2 = new double[k];
-        for (int i = 0; i < k; i++) {
+        for (int i = 0; i < k; i ++) {
             m_keyMax1[i] = Double.MAX_VALUE;
             m_keyMax2[i] = 0.90 * Double.MAX_VALUE;
         }
@@ -137,14 +106,15 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
                     d = x;
                 }
                 x = (x + 1) % k;
-            } while (x != current.dim);
+            }
+            while (x != current.dim);
             while (key[d] == curKey[d]) {
                 d = (d + 1) % k;
             }
             newLeafNode = new LeafNode<T>(key, (d + 1) % k, value);
             newInternal = key[d] < curKey[d]
-                    ? new Node(curKey.clone(), d, newLeafNode, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), parent)
-                    : new Node(key.clone(), d, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), newLeafNode, parent);
+                          ? new Node(curKey.clone(), d, newLeafNode, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), parent)
+                          : new Node(key.clone(), d, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), newLeafNode, parent);
             newInternal.key[d] = curKey[d] * 0.5 + key[d] * 0.5;
 //            int d = current.dim;
 //            while (key[d] == curKey[d]) {
@@ -156,12 +126,15 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
 
             if (turn) {
                 parent.left = newInternal;
-            } else {
+            }
+            else {
                 parent.right = newInternal;
             }
             returnVlaue = true;
-        } catch (Exception e) {
-        } finally {
+        }
+        catch (Exception e) {
+        }
+        finally {
             lock.unlock();
         }
         return returnVlaue;
@@ -181,7 +154,7 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
                 turn = key[parent.dim] < parent.key[parent.dim];
                 current = turn ? (parent.left) : (parent.right);
             }
-            if (!Tools.equals(k, key, current.key)) {
+            if ( ! Tools.equals(k, key, current.key)) {
                 return false;
             }
 
@@ -193,15 +166,18 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
             }
             if (parentDir) {
                 grParent.left = sibling;
-            } else {
+            }
+            else {
                 grParent.right = sibling;
             }
 
             //  lock.unlock();
             returnVlaue = true;
 
-        } catch (Exception e) {
-        } finally {
+        }
+        catch (Exception e) {
+        }
+        finally {
             lock.unlock();
 
         }
@@ -209,12 +185,12 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
     }
 
     @Override
-    public T nearest(double[] key) throws KeySizeException {
+    public T nearest(double[] key, boolean linearizable) throws KeySizeException {
         T returnVal;
         Node<T> parent = root, current = root.left;
         boolean turn = true;
         double[] nearestNeighbour, VisitedHRect = new double[2 * k];// The first k elements are for max of the rectangle and the next k elements are for min of the rectangle
-        for (int i = 0; i < k; i++) {
+        for (int i = 0; i < k; i ++) {
             VisitedHRect[i] = Double.POSITIVE_INFINITY;
             VisitedHRect[k + i] = Double.NEGATIVE_INFINITY;
         }
@@ -225,7 +201,8 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
             current = turn ? (parent.left) : (parent.right);
             if (turn) {
                 VisitedHRect[parent.dim] = parent.key[parent.dim];
-            } else {
+            }
+            else {
                 VisitedHRect[k + parent.dim] = parent.key[parent.dim];
             }
         }
@@ -235,18 +212,19 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
         if (nearestDist != 0) {
             while (parent != root) {
                 double x = (parent.key[parent.dim] - key[parent.dim]);
-                if (x * x < nearestDist && ((turn && parent.key[parent.dim] >= VisitedHRect[parent.dim]) || (!turn && parent.key[parent.dim] <= VisitedHRect[k + parent.dim]))) {
+                if (x * x < nearestDist && ((turn && parent.key[parent.dim] >= VisitedHRect[parent.dim]) || ( ! turn && parent.key[parent.dim] <= VisitedHRect[k + parent.dim]))) {
                     //Here the checks are in the opposite directions
-                    turn = !turn;
+                    turn =  ! turn;
                     current = turn ? (parent.left == parent ? parent.right.left : parent.left)
-                            : (parent.left == parent ? parent.right.right : parent.right);
+                              : (parent.left == parent ? parent.right.right : parent.right);
                     while (current.getClass() == Node.class) {
                         parent = current;
                         turn = key[parent.dim] < parent.key[parent.dim];
                         current = turn ? (parent.left) : (parent.right);
                         if (turn) {
                             VisitedHRect[parent.dim] = parent.key[parent.dim];
-                        } else {
+                        }
+                        else {
                             VisitedHRect[k + parent.dim] = parent.key[parent.dim];
                         }
                     }
@@ -256,13 +234,15 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
                         nearestDist = currentDist;
                         returnVal = ((LeafNode<T>) current).value;
                     }
-                } else {
+                }
+                else {
                     current = parent;
                     parent = parent.parent;
                     turn = current.key[parent.dim] < parent.key[parent.dim];
                     if (turn) {
                         VisitedHRect[parent.dim] = parent.key[parent.dim] > VisitedHRect[parent.dim] ? parent.key[parent.dim] : VisitedHRect[parent.dim];
-                    } else {
+                    }
+                    else {
                         VisitedHRect[k + parent.dim] = parent.key[parent.dim] < VisitedHRect[k + parent.dim] ? parent.key[parent.dim] : VisitedHRect[k + parent.dim];
                     }
                 }
