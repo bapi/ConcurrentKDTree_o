@@ -19,16 +19,26 @@ import se.chalmers.dcs.bapic.concurrentKDTree.utils.*;
  * @param <K>
  * @param <V>
  */
-public class KDTreeLevyWrapper<V> implements KDTreeADT<V> {
+public class LevyKDTreeWrapper<V> implements KDTreeADT<V> {
 
     KDTree<V> kd;
     int DIM;
 
-    public KDTreeLevyWrapper(int dim) {
+    public LevyKDTreeWrapper(int dim) {
+        try {
+            dimensionLimit();
+        }
+        catch (DimensionLimitException ex) {
+            Logger.getLogger(LevyKDTreeWrapper.class.getName()).log(Level.SEVERE, null, ex);
+        }
         kd = new KDTree<>(dim);
         this.DIM = dim;
     }
-
+    private void dimensionLimit() throws DimensionLimitException{
+        if (DIM > 1) {
+            throw new DimensionLimitException("The dimension can not be more than 1!");
+        }
+    }
     @Override
     public boolean contains(double[] key) throws DimensionLimitException {
 
@@ -36,7 +46,7 @@ public class KDTreeLevyWrapper<V> implements KDTreeADT<V> {
             return (kd.search(key) != null);
         }
         catch (KeySizeException ex) {
-            Logger.getLogger(KDTreeLevyWrapper.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(LevyKDTreeWrapper.class.getName()).log(Level.SEVERE, null, ex);
         }
         return false;
     }
@@ -48,7 +58,7 @@ public class KDTreeLevyWrapper<V> implements KDTreeADT<V> {
             kd.insert(key, value);
         }
         catch (KeySizeException | KeyDuplicateException ex) {
-            return false;//Logger.getLogger(KDTreeLevyWrapper.class.getName()).log(Level.SEVERE, null, ex);
+            return false;//Logger.getLogger(LevyKDTreeWrapper.class.getName()).log(Level.SEVERE, null, ex);
         }
         return true;
     }
@@ -62,10 +72,10 @@ public class KDTreeLevyWrapper<V> implements KDTreeADT<V> {
 
         }
         catch (KeySizeException ex) {
-            Logger.getLogger(KDTreeLevyWrapper.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(LevyKDTreeWrapper.class.getName()).log(Level.SEVERE, null, ex);
         }
         catch (KeyMissingException ex) {
-            return false;//Logger.getLogger(KDTreeLevyWrapper.class.getName()).log(Level.SEVERE, null, ex);
+            return false;//Logger.getLogger(LevyKDTreeWrapper.class.getName()).log(Level.SEVERE, null, ex);
         }
 
         return false;
@@ -77,7 +87,7 @@ public class KDTreeLevyWrapper<V> implements KDTreeADT<V> {
             return kd.nearest(key);
         }
         catch (KeySizeException | IllegalArgumentException ex) {
-            Logger.getLogger(KDTreeLevyWrapper.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(LevyKDTreeWrapper.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }

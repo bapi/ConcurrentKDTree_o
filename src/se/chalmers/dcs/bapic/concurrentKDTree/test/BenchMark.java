@@ -28,7 +28,7 @@ import gnu.getopt.LongOpt;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
-import se.chalmers.dcs.bapic.concurrentKDTree.KDTrees.LFKDTree;
+import se.chalmers.dcs.bapic.concurrentKDTree.KDTrees.*;
 
 /**
  *
@@ -60,33 +60,18 @@ public class BenchMark {
 
     private static void defineSet() {
         switch (setType) {
+            case "Simple":
+                set = new SimpleSingleLockBasedKDTree(dimension);
+                break;
+            case "LBKDTree":
+                set = new LBKDTree(dimension);
+                break;
             case "LFKDTree":
                 set = new LFKDTree(dimension);
                 break;
-            // case "HarrisLinkedList":
-            // set = new HarrisLinkedList();
-            // break;
-            // case "HelpOptimalLFList":
-            // set = new HelpOptimalLFList();
-            // break;
-            // case "HelpOptimalSimpleLFBST":
-            // set = new HelpOptimalSimpleLFBST();
-            // break;
-            // case "HelpOptimalLFBST":
-            // set = new HelpOptimalLFBST();
-            // break;
-            // case "HelpOptimalLocalRestartLFBST":
-            // set = new HelpOptimalLocalRestartLFBST();
-            // break;
-            // case "NMLFBST":
-            // set = new NMLFBST();
-            // break;
-            // case "EFRBLFBST":
-            // set = new EFRBLFBST();
-            // break;
-            // case "LFSkipList":
-            // set = new ConcSkipListWrapper();
-            // break;
+            case "Levy":
+                set = new LevyKDTreeWrapper(dimension);
+                break;
             default:
                 set = null;
                 break;
@@ -278,6 +263,39 @@ public class BenchMark {
         RunController.startFlag = RunController.stopFlag = false;
     }
 
+    private static void NNSanityTest() {
+        long memTree = Tools.getMemUsed();
+        set = null;
+        defineSet();
+
+        Tools.cleanMem(memTree);
+
+        Random randKey = new Random(seed);
+        double[][] trainData = new double[dimension][keyRange];
+        double[][] testData = new double[dimension][keyRange];
+        double[][] nnsResultData = new double[dimension][keyRange];
+        for (int i = 0; i < dimension; i ++) {
+            for (int j = 0; j < keyRange; j ++) {
+                trainData[i][j] = randKey.nextGaussian();
+            }
+        }
+        for (int i = 0; i < dimension; i ++) {
+            for (int j = 0; j < keyRange; j ++) {
+                testData[i][j] = randKey.nextDouble();
+            }
+        }
+        for (int i = 0; i < dimension; i ++) {
+            for (int j = 0; j < keyRange; j ++) {
+                try {
+                    set.add(trainData[j], trainData[j]);
+                }
+                catch (DimensionLimitException e) {
+                }
+            }
+        }
+
+    }
+
     private static void SanityTest() {
         RunController.startFlag = RunController.stopFlag = false;
         try {
@@ -351,6 +369,7 @@ public class BenchMark {
         if ( ! failedSanity) {
             System.out.println("Sanity Test Complete");
         }
+
     }
 
     private static void BenchMark() {

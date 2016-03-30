@@ -13,7 +13,7 @@ import se.chalmers.dcs.bapic.concurrentKDTree.utils.*;
  *
  * @author bapic
  */
-public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
+public class SimpleSingleLockBasedKDTree<T> implements KDTreeADT<T> {
 
     protected static class Node<T> {
 
@@ -52,7 +52,7 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
     private volatile ReentrantLock lock = new ReentrantLock();
     final int k;
 
-    public CoarseLockBasedKdTree(int k) {
+    public SimpleSingleLockBasedKDTree(int k) {
         this.k = k;
         double[] m_keyMax1 = new double[k];
         double[] m_keyMax2 = new double[k];
@@ -116,14 +116,6 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
                           ? new Node(curKey.clone(), d, newLeafNode, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), parent)
                           : new Node(key.clone(), d, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), newLeafNode, parent);
             newInternal.key[d] = curKey[d] * 0.5 + key[d] * 0.5;
-//            int d = current.dim;
-//            while (key[d] == curKey[d]) {
-//                d = (d + 1) % k;
-//            }
-//            newInternal = key[d] < curKey[d]
-//                    ? new Node(curKey, d, new LeafNode<T>(key, (d + 1) % k, value), new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), parent)
-//                    : new Node(key, d, new LeafNode<T>(curKey, (d + 1) % k, ((LeafNode<T>) current).value), new LeafNode<T>(key, (d + 1) % k, value), parent);
-
             if (turn) {
                 parent.left = newInternal;
             }
@@ -171,7 +163,6 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
                 grParent.right = sibling;
             }
 
-            //  lock.unlock();
             returnVlaue = true;
 
         }
@@ -250,68 +241,4 @@ public class CoarseLockBasedKdTree<T> implements KDTreeADT<T> {
         }
         return returnVal;
     }
-////////////////////////This version returns the keys and so helps in checking the correcness of nearest neighbour return//////////////
-//    @Override
-//    public T nearest(double[] key) throws KeySizeException {
-//        Node<T> parent = root, current = root.left;
-//        boolean turn = true;
-//        T retVal = null;
-//        double[] nearestNeighbour, VisitedHRect = new double[2 * k];// The first k elements are for max of the rectangle and the next k elements are for min of the rectangle
-//        for (int i = 0; i < k; i++) {
-//            VisitedHRect[i] = Double.POSITIVE_INFINITY;
-//            VisitedHRect[k + i] = Double.NEGATIVE_INFINITY;
-//        }
-//        VisitedHRect[0] = parent.key[parent.dim];
-//        while (current.getClass() == Node.class) {
-//            parent = current;
-//            turn = key[parent.dim] < parent.key[parent.dim];
-//            current = turn ? (parent.left) : (parent.right);
-//            if (turn) {
-//                VisitedHRect[parent.dim] = parent.key[parent.dim];
-//            } else {
-//                VisitedHRect[k + parent.dim] = parent.key[parent.dim];
-//            }
-//        }
-//        nearestNeighbour = current.key;
-//        double nearestDist = Tools.squaredDistance(key, nearestNeighbour), currentDist;
-//        if (nearestDist == 0) {
-//            return ((LeafNode<T>) current).value;
-//        }
-//
-//        while (parent != root) {
-//            double x = (parent.key[parent.dim] - key[parent.dim]);
-//            if (x * x < nearestDist && ((turn && parent.key[parent.dim] >= VisitedHRect[parent.dim]) || (!turn && parent.key[parent.dim] <= VisitedHRect[k + parent.dim]))) {
-//                //Here the checks are in the opposite directions
-//                turn = !turn;
-//                current = turn ? (parent.left == parent ? parent.right.left : parent.left)
-//                        : (parent.left == parent ? parent.right.right : parent.right);
-//                while (current.getClass() == Node.class) {
-//                    parent = current;
-//                    turn = key[parent.dim] < parent.key[parent.dim];
-//                    current = turn ? (parent.left) : (parent.right);
-//                    if (turn) {
-//                        VisitedHRect[parent.dim] = parent.key[parent.dim];
-//                    } else {
-//                        VisitedHRect[k + parent.dim] = parent.key[parent.dim];
-//                    }
-//                }
-//                currentDist = Tools.squaredDistance(key, current.key);
-//                if (currentDist < nearestDist) {
-//                    nearestNeighbour = current.key;
-//                    nearestDist = currentDist;
-//                    retVal = ((LeafNode<T>) current).value;
-//                }
-//            } else {
-//                current = parent;
-//                parent = parent.parent;
-//                turn = current.key[parent.dim] < parent.key[parent.dim];
-//                if (turn) {
-//                    VisitedHRect[parent.dim] = parent.key[parent.dim] > VisitedHRect[parent.dim] ? parent.key[parent.dim] : VisitedHRect[parent.dim];
-//                } else {
-//                    VisitedHRect[k + parent.dim] = parent.key[parent.dim] < VisitedHRect[k + parent.dim] ? parent.key[parent.dim] : VisitedHRect[k + parent.dim];
-//                }
-//            }
-//        }
-//        return retVal;
-//    }
 }
